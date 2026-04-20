@@ -6,7 +6,7 @@ use esp_idf_hal::{
         CAN, CanConfig, CanDriver, Flags, Frame,
         config::{Filter, Timing},
     },
-    delay,
+    delay::{self, TickType},
     gpio::{InputPin, OutputPin},
     sys::{esp_random, twai_message_t},
 };
@@ -30,18 +30,13 @@ pub fn init(
     let mut can = CanDriver::new(can, tx, rx, &config)?;
     can.start()?;
 
-    let (header, frame) = address_claim();
-    can.transmit(
-        &Frame::new(
-            header.serialize(),
-            Flags::Extended.into(),
-            &frame.serialize().to_le_bytes(),
-        )
-        .unwrap(),
-        delay::BLOCK,
-    )?;
-
     thread::spawn(move || {
+        let frame = address_claim();
+        while {
+            can.transmit(&frame, delay::BLOCK).unwrap();
+            can.receive(TickType::new_millis(1000).ticks()).is_err()
+        } {}
+
         loop {
             match can.receive(delay::BLOCK) {
                 Ok(frame) => {
@@ -80,7 +75,7 @@ fn on_packet(app: &App, packet: Packet) {
     }
 }
 
-fn address_claim() -> (Header, AddressClaim) {
+fn address_claim() -> Frame {
     let header = Header::new(AddressClaim::PGN, 6, 11);
     let frame = AddressClaim {
         unique_number: unsafe { esp_random() } & 0x1FFFFF,
@@ -93,5 +88,10 @@ fn address_claim() -> (Header, AddressClaim) {
         arbitrary_address_capable: false,
     };
 
-    (header, frame)
+    Frame::new(
+        header.serialize(),
+        Flags::Extended.into(),
+        &frame.serialize().to_le_bytes(),
+    )
+    .unwrap()
 }

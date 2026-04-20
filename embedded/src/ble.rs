@@ -123,12 +123,14 @@ pub fn init(app: Arc<App>, modem: Modem<'static>) -> Result<()> {
             bt.gap.start_advertising().unwrap();
             info!("Advertising started");
         }
+
+        if let BleGapEvent::AdvertisingConfigured(_) = event {}
     }))?;
 
     bt.gap.set_device_name("windlink").unwrap();
     bt.gap
         .set_adv_conf(&AdvConfiguration {
-            include_name: true,
+            include_name: false,
             include_txpower: true,
             flag: 0x06,
             service_uuid: Some(BtUuid::uuid128(SERVICE)),
@@ -186,9 +188,11 @@ pub fn init(app: Arc<App>, modem: Modem<'static>) -> Result<()> {
                     .lock()
                     .unwrap()
                     .insert(conn_id, Client::default());
+                bt.gap.start_advertising().unwrap();
             }
             GattsEvent::PeerDisconnected { conn_id, .. } => {
                 bt.clients.lock().unwrap().remove(&conn_id);
+                bt.gap.start_advertising().unwrap();
             }
             GattsEvent::Write {
                 conn_id,

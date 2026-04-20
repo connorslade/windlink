@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use esp_idf_hal::peripherals::Peripherals;
+use esp_idf_hal::{delay::FreeRtos, peripherals::Peripherals};
 use esp_idf_svc::log::EspLogger;
 
 use crate::app::App;
@@ -24,7 +24,15 @@ fn main() -> Result<()> {
     ble::init(app.clone(), peripherals.modem)?;
     can::init(app.clone(), peripherals.can, pins.gpio4, pins.gpio5)?;
 
+    let mut speed = 0;
+    let mut angle = 0;
     loop {
-        std::thread::park()
+        app.speed_update(speed);
+        speed += 1;
+        FreeRtos::delay_ms(500);
+        app.wind_update(0, angle);
+        angle += 1745;
+        FreeRtos::delay_ms(500);
+        // std::thread::park()
     }
 }

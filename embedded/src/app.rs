@@ -59,18 +59,20 @@ impl Boat {
     }
 
     fn position_packet(&self) -> Vec<u8> {
-        format!("{}, {}", self.latitude, self.longitude)
-            .as_bytes()
-            .to_vec()
+        let mut out = Vec::new();
+        out.extend(self.longitude.to_le_bytes());
+        out.extend(self.latitude.to_le_bytes());
+        out
     }
 
     fn speed_packet(&self) -> Vec<u8> {
-        self.speed_over_ground.to_string().as_bytes().to_vec()
+        self.speed_over_ground.to_le_bytes().to_vec()
     }
 
     fn wind_packet(&self) -> Vec<u8> {
-        format!("{}, {}", self.wind_speed, self.wind_angle)
-            .as_bytes()
-            .to_vec()
+        let mut out = Vec::new();
+        out.extend(self.wind_speed.to_le_bytes());
+        out.extend(self.wind_angle.to_le_bytes());
+        out
     }
 }
