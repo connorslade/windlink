@@ -30,47 +30,36 @@ impl App {
         let mut boat = self.boat();
         boat.latitude = lat;
         boat.longitude = lon;
-        self.bt()
-            .notify(Characteristic::Position, &boat.position_packet());
     }
 
     pub fn speed_update(&self, speed: u16) {
         let mut boat = self.boat();
         boat.speed_over_ground = speed;
-        self.bt()
-            .notify(Characteristic::Speed, &boat.speed_packet());
+        boat.notify(self.bt(), Characteristic::WindScreen);
     }
 
     pub fn wind_update(&self, speed: u16, angle: u16) {
         let mut boat = self.boat();
         boat.wind_speed = speed;
         boat.wind_angle = angle;
-        self.bt().notify(Characteristic::Wind, &boat.wind_packet());
+        boat.notify(self.bt(), Characteristic::WindScreen);
     }
 }
 
 impl Boat {
+    pub fn notify(&self, bt: MappedMutexGuard<Arc<Bluetooth>>, characteristic: Characteristic) {
+        bt.notify(characteristic, &self.packet(characteristic));
+    }
+
     pub fn packet(&self, characteristic: Characteristic) -> Vec<u8> {
         match characteristic {
-            Characteristic::Position => self.position_packet(),
-            Characteristic::Speed => self.speed_packet(),
-            Characteristic::Wind => self.wind_packet(),
+            Characteristic::WindScreen => self.wind_screen_packet(),
         }
     }
 
-    fn position_packet(&self) -> Vec<u8> {
+    fn wind_screen_packet(&self) -> Vec<u8> {
         let mut out = Vec::new();
-        out.extend(self.longitude.to_le_bytes());
-        out.extend(self.latitude.to_le_bytes());
-        out
-    }
-
-    fn speed_packet(&self) -> Vec<u8> {
-        self.speed_over_ground.to_le_bytes().to_vec()
-    }
-
-    fn wind_packet(&self) -> Vec<u8> {
-        let mut out = Vec::new();
+        out.extend(self.speed_over_ground.to_le_bytes());
         out.extend(self.wind_speed.to_le_bytes());
         out.extend(self.wind_angle.to_le_bytes());
         out

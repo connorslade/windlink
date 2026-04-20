@@ -68,14 +68,14 @@ class WindView extends WatchUi.View {
             cx,
             h * 0.7,
             fontBolt(100),
-            boat.speed.format("%.2f"),
+            boat.speed.format("%.1f"),
             Graphics.TEXT_JUSTIFY_CENTER
         );
         dc.drawText(
             cx,
             h * 0.7 + 95,
             fontBolt(20),
-            boat.wind_angle.format("%.2f"),
+            "KTS",
             Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER
         );
 

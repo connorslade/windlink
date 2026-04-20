@@ -39,44 +39,32 @@ pub mod characteristics {
     use esp_idf_svc::bt::BtUuid;
     use uuid::uuid;
 
-    pub const ALL: &[u128] = &[POSITION, SPEED, WIND];
+    pub const ALL: &[u128] = &[WIND_SCREEN];
 
-    pub const POSITION: u128 = uuid!("300b2aec-a094-43fb-98ff-04917cf7a2fb").as_u128();
-    pub const SPEED: u128 = uuid!("d948b9e5-6626-4d41-8967-c4dca26db1fd").as_u128();
-    pub const WIND: u128 = uuid!("91331b1c-3132-4197-aa43-b86b7df421f1").as_u128();
+    pub const WIND_SCREEN: u128 = uuid!("300b2aec-a094-43fb-98ff-04917cf7a2fb").as_u128();
 
-    #[derive(Debug, PartialEq, Eq, Hash)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
     pub enum Characteristic {
-        Position,
-        Speed,
-        Wind,
+        WindScreen,
     }
 
     #[derive(Default)]
     pub struct CharacteristicHandles {
-        pub position: AtomicU16,
-        pub speed: AtomicU16,
-        pub wind: AtomicU16,
+        pub wind_screen: AtomicU16,
     }
 
     impl CharacteristicHandles {
         pub fn init(&self, char_uuid: BtUuid, attr_handle: u16) {
             let uuid = u128::from_ne_bytes(*char_uuid.as_bytes().as_array::<16>().unwrap());
             match uuid {
-                POSITION => self.position.store(attr_handle, Ordering::Relaxed),
-                SPEED => self.speed.store(attr_handle, Ordering::Relaxed),
-                WIND => self.wind.store(attr_handle, Ordering::Relaxed),
+                WIND_SCREEN => self.wind_screen.store(attr_handle, Ordering::Relaxed),
                 _ => unreachable!(),
             }
         }
 
         pub fn characteristic(&self, handle: u16) -> Option<Characteristic> {
-            if handle == self.position.load(Ordering::Relaxed) {
-                Some(Characteristic::Position)
-            } else if handle == self.speed.load(Ordering::Relaxed) {
-                Some(Characteristic::Speed)
-            } else if handle == self.wind.load(Ordering::Relaxed) {
-                Some(Characteristic::Wind)
+            if handle == self.wind_screen.load(Ordering::Relaxed) {
+                Some(Characteristic::WindScreen)
             } else {
                 None
             }
@@ -84,9 +72,7 @@ pub mod characteristics {
 
         pub fn handle(&self, characteristic: &Characteristic) -> u16 {
             match characteristic {
-                Characteristic::Position => self.position.load(Ordering::Relaxed),
-                Characteristic::Speed => self.speed.load(Ordering::Relaxed),
-                Characteristic::Wind => self.wind.load(Ordering::Relaxed),
+                Characteristic::WindScreen => self.wind_screen.load(Ordering::Relaxed),
             }
         }
     }
@@ -159,7 +145,7 @@ pub fn init(app: Arc<App>, modem: Modem<'static>) -> Result<()> {
                     let characteristic = GattCharacteristic {
                         uuid: BtUuid::uuid128(uuid),
                         permissions: Permission::Read.into(),
-                        properties: Property::Read | Property::Notify,
+                        properties: Property::Read | Property::Indicate,
                         max_len: 20,
                         auto_rsp: AutoResponse::ByApp,
                     };
@@ -205,7 +191,7 @@ pub fn init(app: Arc<App>, modem: Modem<'static>) -> Result<()> {
                 if let Some(client) = clients.get_mut(&conn_id)
                     && let Some(characteristic) = bt.handles.characteristic(handle - 1)
                 {
-                    if value == [1, 0] {
+                    if matches!(value, [1, 0] | [2, 0]) {
                         client.subscribed.insert(characteristic);
                     } else if value == [0, 0] {
                         client.subscribed.remove(&characteristic);
