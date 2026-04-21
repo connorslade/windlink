@@ -11,7 +11,11 @@ use std::{
 pub use header::Header;
 
 use crate::{
-    packets::{FastPacket, KNOWN_FAST_PACKETS, Packet, RawPacket, handshake::AddressClaim},
+    packets::{
+        Packet, RawPacket,
+        fast::{FastPacket, KNOWN_FAST_PACKETS},
+        handshake::AddressClaim,
+    },
     util::bits,
 };
 
@@ -99,11 +103,13 @@ impl Nmea2000 {
         };
 
         match &packet {
+            Some(Packet::IsoRequest(packet)) if packet.pgn == AddressClaim::PGN => {
+                self.queue.push(self.address_claim())
+            }
             Some(Packet::AddressClaim(packet)) => {
                 if header.source == self.address {
                     if self.address_claim.serialize() < packet.serialize() {
                         self.address_claimed = true;
-                        println!("Claimed address {}", self.address);
                         self.queue.push(self.address_claim());
                     } else {
                         self.address_claimed = false;
@@ -127,16 +133,16 @@ impl Nmea2000 {
         packet.serialize(&mut self.queue);
     }
 
-    pub fn flush_queue(&mut self) -> Vec<RawPacket> {
+    pub fn dequeue(&mut self) -> Vec<RawPacket> {
         self.garbage_collect();
-        let mut packets = self._flush_queue();
+        let mut packets = self.flush_queue();
         for packet in packets.iter_mut() {
             packet.overwrite_source(self.address);
         }
         packets
     }
 
-    pub fn _flush_queue(&mut self) -> Vec<RawPacket> {
+    pub fn flush_queue(&mut self) -> Vec<RawPacket> {
         if self.address == 0xFE {
             self.queue.clear();
             return vec![];
@@ -148,7 +154,6 @@ impl Nmea2000 {
                     if instant.elapsed() >= Duration::from_millis(250) {
                         if self.seen_packets {
                             self.address_claimed = true;
-                            println!("Claimed address {}", self.address);
                         } else {
                             self.last_claim = None;
                         }
