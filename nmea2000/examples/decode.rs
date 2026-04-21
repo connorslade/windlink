@@ -1,9 +1,37 @@
-//! Reference: https://canboat.github.io/canboat/canboat.html
+use std::time::Duration;
 
 use anyhow::{Context, Result};
-use socketcan::{CanInterface, CanSocket, Socket, available_interfaces};
+use socketcan::{
+    CanDataFrame, CanInterface, CanSocket, EmbeddedFrame, ExtendedId, Id, Socket,
+    available_interfaces,
+};
 
-use nmea2000::{Header, packets::Packet};
+use nmea2000::{
+    Nmea2000,
+    packets::{Packet, handshake::ProductInformation},
+};
+
+const PRODUCT_INFO: ProductInformation = ProductInformation {
+    version: 00001,
+    product_code: 1,
+    model_id: fixed_width_string(b"windlink"),
+    software_version: fixed_width_string(b"v0.1.0"),
+    model_version: fixed_width_string(b"v1"),
+    serial_code: fixed_width_string(b"1234"),
+    certification_level: 0,
+    load_equivalency: 0,
+};
+
+const fn fixed_width_string<const N: usize>(str: &[u8]) -> [u8; N] {
+    let mut out = [0; N];
+    let mut i = 0;
+    while i < N && i < str.len() {
+        out[i] = str[i];
+        i += 1;
+    }
+
+    out
+}
 
 fn main() -> Result<()> {
     let available = available_interfaces()?;
@@ -15,37 +43,38 @@ fn main() -> Result<()> {
     iface.set_bitrate(250_000, None)?;
     iface.bring_up()?;
 
-    // let header = Header::new(AddressClaim::PGN, 6, 11);
-    // let frame = AddressClaim {
-    //     unique_number: 1824692,
-    //     manufacturer_code: 2000,
-    //     device_instance_lower: 0,
-    //     device_instance_upper: 0,
-    //     device_function: 150,
-    //     device_class: 80,
-    //     system_instance: 0,
-    //     arbitrary_address_capable: false,
-    // };
-    // socket.write_frame(
-    //     &CanDataFrame::new(
-    //         ExtendedId::new(header.serialize()).unwrap(),
-    //         &frame.serialize().to_le_bytes(),
-    //     )
-    //     .unwrap(),
-    // )?;
+    let mut nmea2000 = Nmea2000::new();
 
     loop {
-        match socket.read_raw_frame() {
-            Ok(frame) => {
-                let header = Header::deserialize(frame.can_id);
-                let packet = Packet::deserialize(header.pgn, frame.data);
-                // println!("{header:?}: {data:X}");
-
-                if let Some(packet) = packet {
-                    println!("{packet:?}");
-                }
+        if let Ok(frame) = socket.read_frame_timeout(Duration::from_millis(100))
+            && let Id::Extended(id) = frame.id()
+            && let Some(packet) = nmea2000.on_packet(id.as_raw(), pad_data(frame.data()))
+        {
+            println!("Got: {packet:?}");
+            match packet {
+                Packet::IsoRequest(packet) => match packet.pgn {
+                    0x1F014 => nmea2000.enqueue(Packet::ProductInformation(PRODUCT_INFO)),
+                    _ => {}
+                },
+                _ => {}
             }
-            Err(err) => eprintln!("{err}"),
+        };
+
+        for packet in nmea2000.flush_queue() {
+            println!("Writing: {packet:?}");
+            let frame = CanDataFrame::new(
+                Id::Extended(ExtendedId::new(packet.id).unwrap()),
+                &packet.data,
+            );
+            socket.write_frame(&frame.unwrap()).unwrap();
         }
     }
+}
+
+fn pad_data(data: &[u8]) -> [u8; 8] {
+    let mut out = [0; 8];
+    for (i, &byte) in data.iter().enumerate() {
+        out[i] = byte;
+    }
+    out
 }

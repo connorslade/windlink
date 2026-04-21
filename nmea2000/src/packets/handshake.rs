@@ -1,7 +1,7 @@
 use crate::util::bits;
 
 /// PGN 60928 - ISO Address Claim
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AddressClaim {
     pub unique_number: u32,
     pub manufacturer_code: u16,
@@ -41,8 +41,51 @@ impl AddressClaim {
     }
 }
 
+/// PGN 126996 - Product Information
+#[derive(Debug, Clone)]
+pub struct ProductInformation {
+    pub version: u16,
+    pub product_code: u16,
+    pub model_id: [u8; 32],
+    pub software_version: [u8; 32],
+    pub model_version: [u8; 32],
+    pub serial_code: [u8; 32],
+    pub certification_level: u8,
+    pub load_equivalency: u8,
+}
+
+impl ProductInformation {
+    pub const PGN: u32 = 0x1F014;
+
+    pub fn deserialize(data: &[u8]) -> Self {
+        ProductInformation {
+            version: u16::from_le_bytes([data[0], data[1]]),
+            product_code: u16::from_le_bytes([data[2], data[3]]),
+            model_id: data[4..36].try_into().unwrap(),
+            software_version: data[36..68].try_into().unwrap(),
+            model_version: data[68..100].try_into().unwrap(),
+            serial_code: data[100..132].try_into().unwrap(),
+            certification_level: data[132],
+            load_equivalency: data[133],
+        }
+    }
+
+    pub fn serialize(&self) -> [u8; 134] {
+        let mut out = [0; 134];
+        out[0..2].copy_from_slice(&self.version.to_le_bytes());
+        out[2..4].copy_from_slice(&self.product_code.to_le_bytes());
+        out[4..36].copy_from_slice(&self.model_id);
+        out[36..68].copy_from_slice(&self.software_version);
+        out[68..100].copy_from_slice(&self.model_version);
+        out[100..132].copy_from_slice(&self.serial_code);
+        out[132] = self.certification_level;
+        out[133] = self.load_equivalency;
+        out
+    }
+}
+
 /// PGN 59904 - ISO Request
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct IsoRequest {
     pub pgn: u32,
 }
@@ -60,18 +103,3 @@ impl IsoRequest {
         self.pgn as _
     }
 }
-
-// /// PGN 126996 - Product Information
-// pub struct ProductInformation {}
-
-// impl ProductInformation {
-//     pub const PGN: u32 = 0x1F014;
-
-//     pub fn deserialize(data: u64) -> Self {
-//         todo!()
-//     }
-
-//     pub fn serialize(&self) -> u64 {
-//         0
-//     }
-// }

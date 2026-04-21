@@ -986,6 +986,7 @@ name = "nmea2000"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "num-traits",
 ]
 
 [[package]]

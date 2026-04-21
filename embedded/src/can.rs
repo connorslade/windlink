@@ -43,7 +43,7 @@ pub fn init(
                     let frame = unsafe { mem::transmute::<Frame, twai_message_t>(frame) };
 
                     let header = Header::deserialize(frame.identifier);
-                    let packet = Packet::deserialize(header.pgn, frame.data);
+                    let packet = Packet::deserialize_single(header.pgn, frame.data);
                     let Some(packet) = packet else { continue };
                     info!("{packet:?}");
                     on_packet(&app, packet);

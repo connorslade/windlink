@@ -1,4 +1,4 @@
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct Header {
     pub priority: u8,
     pub source: u8,
@@ -6,10 +6,10 @@ pub struct Header {
 }
 
 impl Header {
-    pub fn new(pgn: u32, priority: u8, source: u8) -> Self {
+    pub fn new(pgn: u32, priority: u8) -> Self {
         Self {
             priority,
-            source,
+            source: 0,
             pgn,
         }
     }

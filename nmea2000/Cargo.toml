@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 anyhow = "1.0.102"
+num-traits = { version = "0.2.19", default-features = false }
 
 [dev-dependencies]
 socketcan = { version = "3.5.0", features = ["enumerate"] }

@@ -3,7 +3,7 @@ use crate::util::bits;
 /// PGN 129025 - Position, Rapid Update
 ///
 /// In 1×10⁻⁷ deg
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct PositionRapidUpdate {
     pub latitude: i32,
     pub longitude: i32,
@@ -25,7 +25,7 @@ impl PositionRapidUpdate {
 }
 
 /// PGN 129026 - COG & SOG, Rapid Update
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CogSogRapidUpdate {
     pub sid: u8,
     pub cog_reference: u8,
@@ -54,7 +54,7 @@ impl CogSogRapidUpdate {
 }
 
 /// PGN 127250 - Vessel Heading
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct VesselHeading {
     pub sid: u8,
     pub heading: u16,
@@ -86,7 +86,7 @@ impl VesselHeading {
 }
 
 /// PGN 130306 - Wind Data
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct WindData {
     pub sid: u8,
     pub wind_speed: u16,
