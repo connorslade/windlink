@@ -8,3 +8,14 @@ where
 {
     (T::one() << bits) - T::one()
 }
+
+pub const fn fixed_string<const N: usize>(str: &[u8]) -> [u8; N] {
+    let mut out = [0; N];
+    let mut i = 0;
+    while i < N && i < str.len() {
+        out[i] = str[i];
+        i += 1;
+    }
+
+    out
+}

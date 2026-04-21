@@ -9,29 +9,19 @@ use socketcan::{
 use nmea2000::{
     Nmea2000,
     packets::{Packet, handshake::ProductInformation},
+    util::fixed_string,
 };
 
 const PRODUCT_INFO: ProductInformation = ProductInformation {
     version: 00001,
     product_code: 1,
-    model_id: fixed_width_string(b"windlink"),
-    software_version: fixed_width_string(b"v0.1.0"),
-    model_version: fixed_width_string(b"v1"),
-    serial_code: fixed_width_string(b"1234"),
+    model_id: fixed_string(b"windlink"),
+    software_version: fixed_string(b"v0.1.0"),
+    model_version: fixed_string(b"v1"),
+    serial_code: fixed_string(b"1234"),
     certification_level: 0,
     load_equivalency: 0,
 };
-
-const fn fixed_width_string<const N: usize>(str: &[u8]) -> [u8; N] {
-    let mut out = [0; N];
-    let mut i = 0;
-    while i < N && i < str.len() {
-        out[i] = str[i];
-        i += 1;
-    }
-
-    out
-}
 
 fn main() -> Result<()> {
     let available = available_interfaces()?;
@@ -60,7 +50,7 @@ fn main() -> Result<()> {
             }
         };
 
-        for packet in nmea2000.flush_queue() {
+        for packet in nmea2000.dequeue() {
             println!("Writing: {packet:?}");
             let frame = CanDataFrame::new(
                 Id::Extended(ExtendedId::new(packet.id).unwrap()),

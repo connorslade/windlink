@@ -1,6 +1,6 @@
 mod header;
 pub mod packets;
-mod util;
+pub mod util;
 
 use std::{
     collections::HashMap,
@@ -142,7 +142,7 @@ impl Nmea2000 {
         packets
     }
 
-    pub fn flush_queue(&mut self) -> Vec<RawPacket> {
+    fn flush_queue(&mut self) -> Vec<RawPacket> {
         if self.address == 0xFE {
             self.queue.clear();
             return vec![];

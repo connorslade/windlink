@@ -8,15 +8,28 @@ use esp_idf_hal::{
     },
     delay::{self, TickType},
     gpio::{InputPin, OutputPin},
-    sys::{esp_random, twai_message_t},
+    sys::{EspError, TickType_t, twai_message_t},
 };
-use log::{error, info};
+use log::info;
 use nmea2000::{
-    Header,
-    packets::{Packet, handshake::AddressClaim},
+    Nmea2000,
+    packets::{Packet, handshake::ProductInformation},
+    util::fixed_string,
 };
 
 use crate::app::App;
+
+const DELAY: TickType = TickType::new_millis(100);
+const PRODUCT_INFO: ProductInformation = ProductInformation {
+    version: 00001,
+    product_code: 1,
+    model_id: fixed_string(b"windlink"),
+    software_version: fixed_string(b"v0.1.0"),
+    model_version: fixed_string(b"v1"),
+    serial_code: fixed_string(b"1234"),
+    certification_level: 0,
+    load_equivalency: 0,
+};
 
 pub fn init(
     app: Arc<App>,
@@ -30,25 +43,19 @@ pub fn init(
     let mut can = CanDriver::new(can, tx, rx, &config)?;
     can.start()?;
 
+    let mut nmea2000 = Nmea2000::new();
     thread::spawn(move || {
-        let frame = address_claim();
-        while {
-            can.transmit(&frame, delay::BLOCK).unwrap();
-            can.receive(TickType::new_millis(1000).ticks()).is_err()
-        } {}
-
         loop {
-            match can.receive(delay::BLOCK) {
-                Ok(frame) => {
-                    let frame = unsafe { mem::transmute::<Frame, twai_message_t>(frame) };
+            if let Ok(frame) = can_receive_raw(&can, DELAY.ticks())
+                && let Some(packet) = nmea2000.on_packet(frame.identifier, frame.data)
+            {
+                on_packet(&app, &mut nmea2000, packet);
+            }
 
-                    let header = Header::deserialize(frame.identifier);
-                    let packet = Packet::deserialize_single(header.pgn, frame.data);
-                    let Some(packet) = packet else { continue };
-                    info!("{packet:?}");
-                    on_packet(&app, packet);
-                }
-                Err(err) => error!("CAN receive error: {err}"),
+            // todo: don't dequeue if not going to send
+            for packet in nmea2000.dequeue() {
+                let frame = Frame::new(packet.id, Flags::Extended.into(), &packet.data).unwrap();
+                can.transmit(&frame, delay::BLOCK).unwrap();
             }
         }
     });
@@ -57,11 +64,12 @@ pub fn init(
     Ok(())
 }
 
-fn on_packet(app: &App, packet: Packet) {
+fn on_packet(app: &App, nmea2000: &mut Nmea2000, packet: Packet) {
     match packet {
-        Packet::IsoRequest(packet) => {
-            info!("Request for PGN {}", packet.pgn);
-        }
+        Packet::IsoRequest(packet) => match packet.pgn {
+            0x1F014 => nmea2000.enqueue(Packet::ProductInformation(PRODUCT_INFO)),
+            _ => {}
+        },
         Packet::PositionRapidUpdate(packet) => {
             app.position_update(packet.latitude, packet.longitude);
         }
@@ -75,23 +83,10 @@ fn on_packet(app: &App, packet: Packet) {
     }
 }
 
-fn address_claim() -> Frame {
-    let header = Header::new(AddressClaim::PGN, 6, 11);
-    let frame = AddressClaim {
-        unique_number: unsafe { esp_random() } & 0x1FFFFF,
-        manufacturer_code: 2000,
-        device_instance_lower: 0,
-        device_instance_upper: 0,
-        device_function: 150,
-        device_class: 80,
-        system_instance: 0,
-        arbitrary_address_capable: false,
-    };
-
-    Frame::new(
-        header.serialize(),
-        Flags::Extended.into(),
-        &frame.serialize().to_le_bytes(),
-    )
-    .unwrap()
+fn can_receive_raw(
+    can: &CanDriver<'static>,
+    timeout: TickType_t,
+) -> Result<twai_message_t, EspError> {
+    can.receive(timeout)
+        .map(|frame| unsafe { mem::transmute::<Frame, twai_message_t>(frame) })
 }
