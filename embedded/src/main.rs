@@ -3,7 +3,12 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use esp_idf_hal::peripherals::Peripherals;
+use esp_idf_hal::{
+    delay::FreeRtos,
+    ledc::{LedcDriver, LedcTimerDriver, config::TimerConfig},
+    peripherals::Peripherals,
+    units::KiloHertz,
+};
 use esp_idf_svc::log::EspLogger;
 
 use crate::app::App;
@@ -24,7 +29,18 @@ fn main() -> Result<()> {
     ble::init(app.clone(), peripherals.modem)?;
     can::init(app.clone(), peripherals.can, pins.gpio4, pins.gpio5)?;
 
+    let mut driver = LedcDriver::new(
+        peripherals.ledc.channel0,
+        &LedcTimerDriver::new(
+            peripherals.ledc.timer0,
+            &TimerConfig::new().frequency(KiloHertz(25).into()),
+        )?,
+        pins.gpio20,
+    )?;
+
     loop {
-        std::thread::park()
+        driver.fade_with_time(driver.get_max_duty() / 4, 500, true)?;
+        driver.fade_with_time(0, 500, true)?;
+        FreeRtos::delay_ms(1000);
     }
 }

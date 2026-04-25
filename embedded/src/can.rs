@@ -26,9 +26,9 @@ const PRODUCT_INFO: ProductInformation = ProductInformation {
     model_id: fixed_string(b"windlink"),
     software_version: fixed_string(b"v0.1.0"),
     model_version: fixed_string(b"v1"),
-    serial_code: fixed_string(b"1234"),
+    serial_code: fixed_string(b"26041F6E7FAD4F909DFF3BB6D7C1CB9A"),
     certification_level: 0,
-    load_equivalency: 0,
+    load_equivalency: 3, // 150mA
 };
 
 pub fn init(
@@ -40,7 +40,7 @@ pub fn init(
     let config = CanConfig::new()
         .timing(Timing::B500K) // act gonna kms over this
         .filter(Filter::extended_allow_all());
-    let mut can = CanDriver::new(can, tx, rx, &config)?;
+    let mut can = CanDriver::new(can, tx, rx, &config)?; // todo: look into async driver
     can.start()?;
 
     let mut nmea2000 = Nmea2000::new();

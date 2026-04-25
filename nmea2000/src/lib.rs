@@ -133,6 +133,10 @@ impl Nmea2000 {
         packet.serialize(&mut self.queue);
     }
 
+    pub fn enqueue_raw(&mut self, packet: RawPacket) {
+        self.queue.push(packet);
+    }
+
     pub fn dequeue(&mut self) -> Vec<RawPacket> {
         self.garbage_collect();
         let mut packets = self.flush_queue();
