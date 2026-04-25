@@ -17,7 +17,14 @@ public class Const {
 
 function fontBolt(size as Number) as Graphics.VectorFont {
     return Graphics.getVectorFont({
-        :face => ["RobotoCondensedBold", "RobotoRegular"],
+        :face => ["RobotoCondensedBold"],
+        :size => size,
+    });
+}
+
+function fontRegular(size as Number) as Graphics.VectorFont {
+    return Graphics.getVectorFont({
+        :face => ["RobotoRegular"],
         :size => size,
     });
 }

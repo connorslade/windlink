@@ -10,6 +10,7 @@ class WindView extends WatchUi.View {
 
     function onUpdate(dc) {
         View.onUpdate(dc);
+        dc.setAntiAlias(true);
 
         var w = dc.getWidth();
         var h = dc.getHeight();
@@ -35,7 +36,7 @@ class WindView extends WatchUi.View {
                 var degree = Math.round(Math.toDegrees(θ - Math.PI))
                     .toNumber()
                     .abs();
-                if (degree <= 120) {
+                if (degree <= 90) {
                     dc.drawText(
                         cx + x * cx * 0.8,
                         cy + y * cy * 0.8,
@@ -64,19 +65,35 @@ class WindView extends WatchUi.View {
         }
 
         dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_BLACK);
+        var gap = 30.0;
         dc.drawText(
-            cx,
-            h * 0.7,
+            cx - gap,
+            h * .7,
             fontBolt(100),
             boat.speed.format("%.1f"),
-            Graphics.TEXT_JUSTIFY_CENTER
+            Graphics.TEXT_JUSTIFY_RIGHT | Graphics.TEXT_JUSTIFY_VCENTER
         );
         dc.drawText(
-            cx,
-            h * 0.7 + 95,
+            cx - gap,
+            h * .7 + 45,
             fontBolt(20),
             "KTS",
-            Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER
+            Graphics.TEXT_JUSTIFY_RIGHT | Graphics.TEXT_JUSTIFY_VCENTER
+        );
+
+        dc.drawText(
+            cx + gap,
+            h * .7,
+            fontBolt(100),
+            boat.wind_speed.format("%.1f"),
+            Graphics.TEXT_JUSTIFY_LEFT | Graphics.TEXT_JUSTIFY_VCENTER
+        );
+        dc.drawText(
+            cx + gap,
+            h * .7 + 45,
+            fontBolt(20),
+            "KTS",
+            Graphics.TEXT_JUSTIFY_LEFT | Graphics.TEXT_JUSTIFY_VCENTER
         );
 
         var x = Math.cos(boat.wind_angle - PI_FRAC_2);

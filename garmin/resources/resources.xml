@@ -1,5 +1,7 @@
 <resources xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:noNamespaceSchemaLocation="http://developer.garmin.com/downloads/connect-iq/resources.xsd">
     <string id="AppName">windlink</string>
-        <bitmap id="LauncherIcon" filename="launcher-icon.svg" />
+    <bitmap id="LauncherIcon" filename="launcher-icon.svg" />
+    <bitmap id="BoatIcon" filename="boat.svg" />
+    <bitmap id="WindIcon" filename="wind.svg" />
 </resources>
