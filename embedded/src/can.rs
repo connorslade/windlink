@@ -17,11 +17,11 @@ use nmea2000::{
     util::fixed_string,
 };
 
-use crate::app::App;
+use crate::app::{App, IndicatorEvent};
 
 const DELAY: TickType = TickType::new_millis(100);
 const PRODUCT_INFO: ProductInformation = ProductInformation {
-    version: 00001,
+    version: 1,
     product_code: 1,
     model_id: fixed_string(b"windlink"),
     software_version: fixed_string(b"v0.1.0"),
@@ -44,11 +44,13 @@ pub fn init(
     can.start()?;
 
     let mut nmea2000 = Nmea2000::new();
+    let mut idle = true;
     thread::spawn(move || {
         loop {
             if let Ok(frame) = can_receive_raw(&can, DELAY.ticks())
                 && let Some(packet) = nmea2000.on_packet(frame.identifier, frame.data)
             {
+                mem::take(&mut idle).then(|| app.indicator(IndicatorEvent::CanOnline));
                 on_packet(&app, &mut nmea2000, packet);
             }
 

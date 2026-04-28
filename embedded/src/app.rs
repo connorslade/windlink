@@ -1,10 +1,17 @@
-use std::sync::{Arc, MappedMutexGuard, Mutex, MutexGuard};
+use std::sync::{Arc, MappedMutexGuard, Mutex, MutexGuard, mpsc::SyncSender};
 
-use crate::ble::{Bluetooth, characteristics::Characteristic};
+use crate::{
+    ble::{Bluetooth, characteristics::Characteristic},
+    util::ForceLock,
+};
+
+type Soon<T> = Mutex<Option<T>>;
 
 #[derive(Default)]
 pub struct App {
-    pub bt: Mutex<Option<Arc<Bluetooth>>>,
+    pub bt: Soon<Arc<Bluetooth>>,
+    pub indicator: Soon<SyncSender<IndicatorEvent>>,
+
     boat: Mutex<Boat>,
 }
 
@@ -17,13 +24,22 @@ pub struct Boat {
     pub speed_over_ground: u16,
 }
 
+pub enum IndicatorEvent {
+    CanOnline,
+}
+
 impl App {
     pub fn boat(&self) -> MutexGuard<'_, Boat> {
-        self.boat.lock().unwrap()
+        self.boat.force_lock()
     }
 
     pub fn bt(&self) -> MappedMutexGuard<'_, Arc<Bluetooth>> {
-        MutexGuard::map(self.bt.lock().unwrap(), |x| x.as_mut().unwrap())
+        MutexGuard::map(self.bt.force_lock(), |x| x.as_mut().unwrap())
+    }
+
+    pub fn indicator(&self, event: IndicatorEvent) {
+        let mut channel = self.indicator.force_lock();
+        channel.as_mut().unwrap().send(event).unwrap();
     }
 
     pub fn position_update(&self, lat: i32, lon: i32) {

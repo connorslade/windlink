@@ -28,7 +28,7 @@ use uuid::uuid;
 
 use characteristics::CharacteristicHandles;
 
-use crate::{app::App, ble::characteristics::Characteristic};
+use crate::{app::App, ble::characteristics::Characteristic, util::ForceLock};
 
 const APP_ID: u16 = 0;
 const SERVICE: u128 = uuid!("76e20500-da73-4971-bb03-6105e39db3d6").as_u128();
@@ -170,14 +170,11 @@ pub fn init(app: Arc<App>, modem: Modem<'static>) -> Result<()> {
                 bt.handles.init(char_uuid, attr_handle);
             }
             GattsEvent::PeerConnected { conn_id, .. } => {
-                bt.clients
-                    .lock()
-                    .unwrap()
-                    .insert(conn_id, Client::default());
+                bt.clients.force_lock().insert(conn_id, Client::default());
                 bt.gap.start_advertising().unwrap();
             }
             GattsEvent::PeerDisconnected { conn_id, .. } => {
-                bt.clients.lock().unwrap().remove(&conn_id);
+                bt.clients.force_lock().remove(&conn_id);
                 bt.gap.start_advertising().unwrap();
             }
             GattsEvent::Write {
@@ -187,7 +184,7 @@ pub fn init(app: Arc<App>, modem: Modem<'static>) -> Result<()> {
                 value,
                 ..
             } => {
-                let mut clients = bt.clients.lock().unwrap();
+                let mut clients = bt.clients.force_lock();
                 if let Some(client) = clients.get_mut(&conn_id)
                     && let Some(characteristic) = bt.handles.characteristic(handle - 1)
                 {
@@ -224,7 +221,7 @@ pub fn init(app: Arc<App>, modem: Modem<'static>) -> Result<()> {
         }))?;
 
     bt.gatts.register_app(APP_ID)?;
-    app.bt.lock().unwrap().replace(bt);
+    app.bt.force_lock().replace(bt);
     info!("Initialized BLE");
     Ok(())
 }
@@ -236,7 +233,7 @@ impl Bluetooth {
 
     pub fn notify(&self, characteristic: Characteristic, data: &[u8]) {
         let attr_handle = self.handles.handle(&characteristic);
-        let clients = self.clients.lock().unwrap();
+        let clients = self.clients.force_lock();
 
         for (&conn_id, client) in clients.iter() {
             if client.subscribed.contains(&characteristic) {
