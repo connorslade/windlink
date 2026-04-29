@@ -26,7 +26,7 @@ fn main() -> Result<()> {
 
     ble::init(app.clone(), peripherals.modem)?;
     can::init(app.clone(), peripherals.can, pins.gpio4, pins.gpio5)?;
-    indicator::init(app.clone(), ledc.channel0, ledc.timer0, pins.gpio20)?;
+    indicator::init(app.clone(), ledc.channel0, ledc.timer0, pins.gpio14)?;
 
     loop {
         thread::park();
