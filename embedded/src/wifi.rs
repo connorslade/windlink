@@ -1,7 +1,13 @@
-use std::{mem::ManuallyDrop, sync::Arc};
+use std::{
+    io::{self, BufWriter, Write},
+    mem::ManuallyDrop,
+    net::{TcpListener, TcpStream},
+    sync::Arc,
+    thread,
+};
 
 use anyhow::{Error, Result};
-use esp_idf_hal::{delay::FreeRtos, modem::WifiModem};
+use esp_idf_hal::{delay::FreeRtos, modem::WifiModem, sys::twai_message_t};
 use esp_idf_svc::{
     eventloop::EspSystemEventLoop,
     http::{Method, server::EspHttpServer},
@@ -11,7 +17,11 @@ use esp_idf_svc::{
 };
 use log::info;
 
-use crate::app::App;
+use crate::{app::App, util::ForceLock};
+
+pub struct WirelessClient {
+    stream: BufWriter<TcpStream>,
+}
 
 pub fn init(app: Arc<App>, modem: WifiModem<'static>) -> Result<()> {
     let sysloop = EspSystemEventLoop::take()?;
@@ -30,8 +40,9 @@ pub fn init(app: Arc<App>, modem: WifiModem<'static>) -> Result<()> {
     wifi.wait_netif_up()?;
     info!("Initialized WiFi");
 
-    let ip_info = wifi.wifi().ap_netif().get_ip_info()?;
-    info!("AP: {:?}", ip_info.ip);
+    let mut mdns = ManuallyDrop::new(EspMdns::take()?);
+    mdns.set_hostname("windlink")?;
+    mdns.add_service(None, "_http", "_tcp", 80, &[])?;
 
     let mut http = ManuallyDrop::new(EspHttpServer::new(&Default::default())?);
     http.fn_handler::<Error, _>("/", Method::Get, |req| {
@@ -49,9 +60,30 @@ pub fn init(app: Arc<App>, modem: WifiModem<'static>) -> Result<()> {
         esp_idf_hal::reset::restart();
     })?;
 
-    let mut mdns = ManuallyDrop::new(EspMdns::take()?);
-    mdns.set_hostname("windlink")?;
-    mdns.add_service(None, "_http", "_tcp", 80, &[])?;
+    let socket = TcpListener::bind("0.0.0.0:40")?;
+    thread::spawn(move || {
+        for stream in socket.incoming().filter_map(|x| x.ok()) {
+            let mut wireless = app.wireless.force_lock();
+            wireless.push(WirelessClient {
+                stream: BufWriter::new(stream),
+            });
+        }
+    });
 
     Ok(())
+}
+
+impl WirelessClient {
+    fn _write(&mut self, frame: twai_message_t) -> io::Result<()> {
+        let bytes = frame.data_length_code as usize;
+        self.stream.write_all(&frame.identifier.to_be_bytes())?;
+        self.stream.write_all(&[frame.data_length_code])?;
+        self.stream.write_all(&frame.data[0..bytes])?;
+        Ok(())
+    }
+
+    // returns true if socket was closed
+    pub fn write(&mut self, frame: twai_message_t) -> bool {
+        self._write(frame).is_err()
+    }
 }

@@ -1,10 +1,12 @@
 use std::sync::{Arc, MappedMutexGuard, Mutex, MutexGuard, mpsc::SyncSender};
 
+use esp_idf_hal::sys::twai_message_t;
 use esp_idf_svc::nvs::EspDefaultNvsPartition;
 
 use crate::{
     ble::{Bluetooth, characteristics::Characteristic},
     util::ForceLock,
+    wifi::WirelessClient,
 };
 
 type Soon<T> = Mutex<Option<T>>;
@@ -12,6 +14,7 @@ type Soon<T> = Mutex<Option<T>>;
 pub struct App {
     pub bt: Soon<Arc<Bluetooth>>,
     pub indicator: Soon<SyncSender<IndicatorEvent>>,
+    pub wireless: Mutex<Vec<WirelessClient>>,
 
     pub nvs: EspDefaultNvsPartition,
 
@@ -36,7 +39,10 @@ impl App {
         Self {
             bt: Default::default(),
             indicator: Default::default(),
+            wireless: Default::default(),
+
             nvs: EspDefaultNvsPartition::take().unwrap(),
+
             boat: Default::default(),
         }
     }
@@ -47,6 +53,19 @@ impl App {
 
     pub fn bt(&self) -> MappedMutexGuard<'_, Arc<Bluetooth>> {
         MutexGuard::map(self.bt.force_lock(), |x| x.as_mut().unwrap())
+    }
+
+    pub fn on_can_frame(&self, frame: twai_message_t) {
+        let mut wireless = self.wireless.force_lock();
+
+        let mut i = 0;
+        while i < wireless.len() {
+            if wireless[i].write(frame) {
+                wireless.remove(i);
+            } else {
+                i += 1;
+            }
+        }
     }
 
     pub fn indicator(&self, event: IndicatorEvent) {

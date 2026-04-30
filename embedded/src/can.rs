@@ -47,9 +47,12 @@ pub fn init(
     let mut idle = true;
     thread::spawn(move || {
         loop {
-            if let Ok(frame) = can_receive_raw(&can, DELAY.ticks())
-                && let Some(packet) = nmea2000.on_packet(frame.identifier, frame.data)
-            {
+            let Ok(frame) = can_receive_raw(&can, DELAY.ticks()) else {
+                continue;
+            };
+
+            app.on_can_frame(frame);
+            if let Some(packet) = nmea2000.on_packet(frame.identifier, frame.data) {
                 mem::take(&mut idle).then(|| app.indicator(IndicatorEvent::CanOnline));
                 on_packet(&app, &mut nmea2000, packet);
             }
