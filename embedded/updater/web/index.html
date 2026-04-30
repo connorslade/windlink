@@ -7,8 +7,12 @@
     </head>
     <body>
         <h1>windlink boot menu</h1>
+        <p>
+            Be careful here, booting into an invalid image will require physical
+            board access to recover from.
+        </p>
 
-        <button>Boot</button>
+        <button id="boot">Boot</button>
         <br />
 
         <input type="file" id="bin" accept=".bin" />
@@ -17,11 +21,9 @@
     </body>
 
     <script>
-        let flash = document.querySelector("#flash");
-
-        flash.addEventListener("click", async () => {
+        document.querySelector("#flash").addEventListener("click", async () => {
             const input = document.getElementById("bin");
-            if (!input.files.length) return alert("Select a file!");
+            if (!input.files.length) return alert("No file selected.");
             const file = input.files[0];
 
             try {

@@ -36,6 +36,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f202df86484c868dbad7eaa557ef785d5c66295e41b460ef922eca0723b842c"
 
 [[package]]
+name = "application"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clone-macro",
+ "embuild 0.32.0",
+ "esp-idf-hal",
+ "esp-idf-svc",
+ "log",
+ "nmea2000",
+ "uuid",
+]
+
+[[package]]
 name = "as-slice"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -987,20 +1001,6 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "num-traits",
-]
-
-[[package]]
-name = "nmea2000-ble"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "clone-macro",
- "embuild 0.32.0",
- "esp-idf-hal",
- "esp-idf-svc",
- "log",
- "nmea2000",
- "uuid",
 ]
 
 [[package]]

@@ -17,13 +17,12 @@
     </body>
 
     <script>
-        let updateMode = document.querySelector("#update-mode");
-
-        updateMode.addEventListener("click", async () => {
-            await fetch("/update", {
+        document.querySelector("#update-mode").addEventListener("click", () => {
+            fetch("/update", {
                 method: "POST",
+            }).then(() => {
+                setTimeout(() => window.location.reload(true), 5000);
             });
-            window.location.reload(true);
         });
     </script>
 </html>

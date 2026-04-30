@@ -1,11 +1,11 @@
 [package]
-name = "nmea2000-ble"
+name = "application"
 version = "0.1.0"
 edition = "2024"
 resolver = "2"
 
 [dependencies]
-nmea2000 = { path = "../nmea2000" }
+nmea2000 = { path = "../../nmea2000" }
 
 anyhow = "1.0.102"
 clone-macro = "1.0.0"

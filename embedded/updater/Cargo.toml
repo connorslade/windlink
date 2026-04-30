@@ -1,5 +1,5 @@
 [package]
-name = "embeded_update"
+name = "updater"
 version = "0.1.0"
 edition = "2024"
 
@@ -8,6 +8,9 @@ anyhow = "1.0.102"
 esp-idf-hal = "0.46.2"
 esp-idf-svc = "0.52"
 log = "0.4"
+
+[[package.metadata.esp-idf-sys.extra_components]]
+remote_component = { name = "espressif/mdns", version = "1.8.2" }
 
 [build-dependencies]
 embuild = { version = "0.32", features = ["espidf"] }
