@@ -1,5 +1,7 @@
 use std::sync::{Arc, MappedMutexGuard, Mutex, MutexGuard, mpsc::SyncSender};
 
+use esp_idf_svc::nvs::EspDefaultNvsPartition;
+
 use crate::{
     ble::{Bluetooth, characteristics::Characteristic},
     util::ForceLock,
@@ -7,10 +9,11 @@ use crate::{
 
 type Soon<T> = Mutex<Option<T>>;
 
-#[derive(Default)]
 pub struct App {
     pub bt: Soon<Arc<Bluetooth>>,
     pub indicator: Soon<SyncSender<IndicatorEvent>>,
+
+    pub nvs: EspDefaultNvsPartition,
 
     boat: Mutex<Boat>,
 }
@@ -29,6 +32,15 @@ pub enum IndicatorEvent {
 }
 
 impl App {
+    pub fn new() -> Self {
+        Self {
+            bt: Default::default(),
+            indicator: Default::default(),
+            nvs: EspDefaultNvsPartition::take().unwrap(),
+            boat: Default::default(),
+        }
+    }
+
     pub fn boat(&self) -> MutexGuard<'_, Boat> {
         self.boat.force_lock()
     }

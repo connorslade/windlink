@@ -14,5 +14,8 @@ esp-idf-svc = "0.52"
 log = "0.4"
 uuid = "1.23.0"
 
+[[package.metadata.esp-idf-sys.extra_components]]
+remote_component = { name = "espressif/mdns", version = "1.8.2" }
+
 [build-dependencies]
 embuild = { version = "0.32", features = ["espidf"] }

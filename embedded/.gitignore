@@ -1,2 +1,4 @@
 /target
 /.embuild
+*.lock
+!Cargo.lock

@@ -8,20 +8,17 @@ use std::{
 
 use anyhow::Result;
 use clone_macro::clone;
-use esp_idf_hal::modem::Modem;
-use esp_idf_svc::{
-    bt::{
-        Ble, BtDriver, BtUuid,
-        ble::{
-            gap::{AdvConfiguration, AppearanceCategory, BleGapEvent, EspBleGap},
-            gatt::{
-                AutoResponse, GattCharacteristic, GattDescriptor, GattId, GattResponse,
-                GattServiceId, GattStatus, Permission, Property,
-                server::{EspGatts, GattsEvent},
-            },
+use esp_idf_hal::modem::BluetoothModem;
+use esp_idf_svc::bt::{
+    Ble, BtDriver, BtUuid,
+    ble::{
+        gap::{AdvConfiguration, AppearanceCategory, BleGapEvent, EspBleGap},
+        gatt::{
+            AutoResponse, GattCharacteristic, GattDescriptor, GattId, GattResponse, GattServiceId,
+            GattStatus, Permission, Property,
+            server::{EspGatts, GattsEvent},
         },
     },
-    nvs::EspDefaultNvsPartition,
 };
 use log::info;
 use uuid::uuid;
@@ -92,10 +89,8 @@ struct Client {
     subscribed: HashSet<Characteristic>,
 }
 
-pub fn init(app: Arc<App>, modem: Modem<'static>) -> Result<()> {
-    let nvs = EspDefaultNvsPartition::take()?;
-    let driver = Arc::new(BtDriver::<Ble>::new(modem, Some(nvs))?);
-
+pub fn init(app: Arc<App>, modem: BluetoothModem<'static>) -> Result<()> {
+    let driver = Arc::new(BtDriver::<Ble>::new(modem, Some(app.nvs.clone()))?);
     let bt = Arc::new(Bluetooth {
         gap: EspBleGap::new(driver.clone())?,
         gatts: EspGatts::new(driver.clone())?,
