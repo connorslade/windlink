@@ -13,10 +13,17 @@
         <p>Waiting for nmea2000 messages.</p>
 
         <h2>Firmware Update</h2>
-        <form action="/flash" method="post">
-            <input type="file" id="bin" name="bin" accept=".bin" />
-            <br />
-            <input type="submit" value="Flash" />
-        </form>
+        <button id="update-mode">Enter update mode</button>
     </body>
+
+    <script>
+        let updateMode = document.querySelector("#update-mode");
+
+        updateMode.addEventListener("click", async () => {
+            await fetch("/update", {
+                method: "POST",
+            });
+            window.location.reload(true);
+        });
+    </script>
 </html>

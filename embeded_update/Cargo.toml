@@ -1,0 +1,20 @@
+[package]
+name = "embeded_update"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1.0.102"
+esp-idf-hal = "0.46.2"
+esp-idf-svc = "0.52"
+log = "0.4"
+
+[build-dependencies]
+embuild = { version = "0.32", features = ["espidf"] }
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"

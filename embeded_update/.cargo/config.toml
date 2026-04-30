@@ -1,0 +1,16 @@
+[build]
+target = "riscv32imac-esp-espidf"
+
+[target.'cfg(target_os = "espidf")']
+linker = "ldproxy"
+rustflags = [
+    "--cfg", "espidf_time64",
+    "--cfg", "esp32c6",
+    "--cfg", "esp_idf_comp_nvs_flash_enabled",
+]
+
+[env]
+ESP_IDF_VERSION = "v5.5.3"
+
+[unstable]
+build-std = ["std", "panic_abort"]

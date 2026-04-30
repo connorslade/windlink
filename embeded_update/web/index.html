@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>windlink</title>
+    </head>
+    <body>
+        <h1>windlink boot menu</h1>
+
+        <button>Boot</button>
+        <br />
+
+        <input type="file" id="bin" accept=".bin" />
+        <br />
+        <button id="flash">Flash</button>
+    </body>
+
+    <script>
+        let flash = document.querySelector("#flash");
+
+        flash.addEventListener("click", async () => {
+            const input = document.getElementById("bin");
+            if (!input.files.length) return alert("Select a file!");
+            const file = input.files[0];
+
+            try {
+                const response = await fetch("/flash", {
+                    method: "POST",
+                    body: file,
+                });
+
+                if (response.ok)
+                    document.body.innerHTML = await response.text();
+                else alert("Update failed");
+            } catch (e) {
+                alert("Error uploading file");
+            }
+        });
+    </script>
+</html>
