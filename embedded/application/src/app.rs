@@ -1,7 +1,12 @@
-use std::sync::{Arc, MappedMutexGuard, Mutex, MutexGuard, mpsc::SyncSender};
+use std::{
+    collections::VecDeque,
+    sync::{Arc, MappedMutexGuard, Mutex, MutexGuard, mpsc::SyncSender},
+};
 
 use esp_idf_hal::sys::twai_message_t;
 use esp_idf_svc::nvs::EspDefaultNvsPartition;
+use log::{Log, Metadata, Record};
+use nmea2000::packets::RawPacket;
 
 use crate::{
     ble::{Bluetooth, characteristics::Characteristic},
@@ -12,9 +17,11 @@ use crate::{
 type Soon<T> = Mutex<Option<T>>;
 
 pub struct App {
+    pub logs: Mutex<VecDeque<String>>,
     pub bt: Soon<Arc<Bluetooth>>,
     pub indicator: Soon<SyncSender<IndicatorEvent>>,
     pub wireless: Mutex<Vec<WirelessClient>>,
+    pub packets: Mutex<Vec<RawPacket>>,
 
     pub nvs: EspDefaultNvsPartition,
 
@@ -34,12 +41,18 @@ pub enum IndicatorEvent {
     CanOnline,
 }
 
+pub struct MemoryLogger {
+    pub app: Arc<App>,
+}
+
 impl App {
     pub fn new() -> Self {
         Self {
+            logs: Default::default(),
             bt: Default::default(),
             indicator: Default::default(),
             wireless: Default::default(),
+            packets: Default::default(),
 
             nvs: EspDefaultNvsPartition::take().unwrap(),
 
@@ -53,6 +66,10 @@ impl App {
 
     pub fn bt(&self) -> MappedMutexGuard<'_, Arc<Bluetooth>> {
         MutexGuard::map(self.bt.force_lock(), |x| x.as_mut().unwrap())
+    }
+
+    pub fn enqueue_packet(&self, packet: RawPacket) {
+        self.packets.force_lock().push(packet);
     }
 
     pub fn on_can_frame(&self, frame: twai_message_t) {
@@ -111,4 +128,21 @@ impl Boat {
         out.extend(self.wind_angle.to_le_bytes());
         out
     }
+}
+
+impl Log for MemoryLogger {
+    fn enabled(&self, _metadata: &Metadata) -> bool {
+        true
+    }
+
+    fn log(&self, record: &Record) {
+        let mut logs = self.app.logs.force_lock();
+        logs.push_back(format!("{} {}", record.level(), record.args()));
+
+        while logs.len() > 30 {
+            logs.pop_front();
+        }
+    }
+
+    fn flush(&self) {}
 }

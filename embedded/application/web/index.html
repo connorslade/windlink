@@ -10,18 +10,36 @@
         <a href="https://github.com/connorslade/windlink">Source Code</a>
 
         <h2>Status</h2>
-        <p>Waiting for nmea2000 messages.</p>
+        <pre id="logs"></pre>
 
         <h2>Firmware Update</h2>
-        <button id="update-mode">Enter boot menu</button>
+        <button id="update">Enter boot menu</button>
+        <p id="updateStatus"></p>
     </body>
 
     <script>
-        document.querySelector("#update-mode").addEventListener("click", () => {
+        async function fetchLogs() {
+            const res = await fetch("/logs");
+            logs.innerText = await res.text();
+        }
+        fetchLogs();
+        const fetchLogsTask = setInterval(fetchLogs, 3000);
+
+        update.addEventListener("click", () => {
+            update.disabled = true;
+            clearInterval(fetchLogsTask);
             fetch("/update", {
                 method: "POST",
             }).then(() => {
-                setTimeout(() => window.location.reload(true), 5000);
+                let duration = 5;
+                updateStatus.innerText = `Entered boot mode. Reloading in ${duration}s...`;
+                const interval = setInterval(() => {
+                    updateStatus.innerText = `Entered boot mode. Reloading in ${--duration}s...`;
+                    if (duration <= 0) {
+                        clearInterval(interval);
+                        location.reload();
+                    }
+                }, 1000);
             });
         });
     </script>

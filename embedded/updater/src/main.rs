@@ -6,9 +6,10 @@ use esp_idf_svc::{
     eventloop::EspSystemEventLoop,
     http::{Method, server::EspHttpServer},
     log::EspLogger,
+    mdns::EspMdns,
     nvs::EspDefaultNvsPartition,
     ota::EspOta,
-    wifi::{AccessPointConfiguration, AuthMethod, BlockingWifi, Configuration, EspWifi},
+    wifi::{AccessPointConfiguration, BlockingWifi, Configuration, EspWifi},
 };
 
 fn main() -> Result<()> {
@@ -24,14 +25,16 @@ fn main() -> Result<()> {
 
     let config = AccessPointConfiguration {
         ssid: "windlink".try_into().unwrap(),
-        ssid_hidden: false,
-        auth_method: AuthMethod::None,
         ..Default::default()
     };
 
     wifi.set_configuration(&Configuration::AccessPoint(config))?;
     wifi.start()?;
     wifi.wait_netif_up()?;
+
+    let mut mdns = ManuallyDrop::new(EspMdns::take()?);
+    mdns.set_hostname("windlink")?;
+    mdns.add_service(None, "_http", "_tcp", 80, &[])?;
 
     let mut http = ManuallyDrop::new(EspHttpServer::new(&Default::default())?);
     http.fn_handler::<Error, _>("/", Method::Get, |req| {
@@ -57,13 +60,9 @@ fn main() -> Result<()> {
         update.complete()?;
         req.into_ok_response()?.flush()?;
 
-        FreeRtos::delay_ms(500);
+        FreeRtos::delay_ms(1000);
         esp_idf_hal::reset::restart();
     })?;
-
-    // let mut mdns = ManuallyDrop::new(EspMdns::take()?);
-    // mdns.set_hostname("windlink")?;
-    // mdns.add_service(None, "_http", "_tcp", 80, &[])?;
 
     loop {
         thread::park();

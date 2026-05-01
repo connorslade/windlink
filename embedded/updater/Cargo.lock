@@ -467,17 +467,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "embeded_update"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "embuild 0.32.0",
- "esp-idf-hal",
- "esp-idf-svc",
- "log",
-]
-
-[[package]]
 name = "embuild"
 version = "0.32.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1493,6 +1482,17 @@ name = "unicode-xid"
 version = "0.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ebc1c04c71510c7f702b52b7c350734c9ff1295c464a03335b00bb84fc54f853"
+
+[[package]]
+name = "updater"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "embuild 0.32.0",
+ "esp-idf-hal",
+ "esp-idf-svc",
+ "log",
+]
 
 [[package]]
 name = "version_check"

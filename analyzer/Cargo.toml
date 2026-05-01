@@ -1,0 +1,10 @@
+[package]
+name = "analyzer"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+nmea2000 = { path = "../nmea2000" }
+
+anyhow = "1.0.102"
+mdns-sd = "0.19.1"

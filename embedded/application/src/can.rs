@@ -17,7 +17,10 @@ use nmea2000::{
     util::fixed_string,
 };
 
-use crate::app::{App, IndicatorEvent};
+use crate::{
+    app::{App, IndicatorEvent},
+    util::ForceLock,
+};
 
 const DELAY: TickType = TickType::new_millis(100);
 const PRODUCT_INFO: ProductInformation = ProductInformation {
@@ -62,6 +65,13 @@ pub fn init(
                 let frame = Frame::new(packet.id, Flags::Extended.into(), &packet.data).unwrap();
                 can.transmit(&frame, delay::BLOCK).unwrap();
             }
+
+            let mut packets = app.packets.force_lock();
+            for packet in packets.iter() {
+                let frame = Frame::new(packet.id, Flags::Extended.into(), &packet.data).unwrap();
+                can.transmit(&frame, delay::BLOCK).unwrap();
+            }
+            packets.clear();
         }
     });
 

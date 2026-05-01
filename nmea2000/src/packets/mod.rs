@@ -93,6 +93,10 @@ impl RawPacket {
         }
     }
 
+    pub fn new_raw(id: u32, data: [u8; 8]) -> Self {
+        Self { id, data }
+    }
+
     pub fn overwrite_source(&mut self, source: u8) {
         self.id = self.id & 0xFFFFFF00 | source as u32;
     }

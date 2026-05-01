@@ -1,26 +1,31 @@
 use std::{
-    io::{self, BufWriter, Write},
+    io::{self, Read, Write},
     mem::ManuallyDrop,
-    net::{TcpListener, TcpStream},
+    net::TcpListener,
     sync::Arc,
     thread,
 };
 
 use anyhow::{Error, Result};
-use esp_idf_hal::{delay::FreeRtos, modem::WifiModem, sys::twai_message_t};
+use clone_macro::clone;
+use esp_idf_hal::{delay::FreeRtos, io::Write as _, modem::WifiModem, sys::twai_message_t};
 use esp_idf_svc::{
     eventloop::EspSystemEventLoop,
     http::{Method, server::EspHttpServer},
     mdns::EspMdns,
     ota::EspOta,
-    wifi::{AccessPointConfiguration, AuthMethod, BlockingWifi, Configuration, EspWifi},
+    wifi::{AccessPointConfiguration, BlockingWifi, Configuration, EspWifi},
 };
 use log::info;
+use nmea2000::packets::RawPacket;
 
-use crate::{app::App, util::ForceLock};
+use crate::{
+    app::App,
+    util::{ForceLock, SharedStream},
+};
 
 pub struct WirelessClient {
-    stream: BufWriter<TcpStream>,
+    stream: SharedStream,
 }
 
 pub fn init(app: Arc<App>, modem: WifiModem<'static>) -> Result<()> {
@@ -30,8 +35,6 @@ pub fn init(app: Arc<App>, modem: WifiModem<'static>) -> Result<()> {
 
     let config = AccessPointConfiguration {
         ssid: "windlink".try_into().unwrap(),
-        ssid_hidden: false,
-        auth_method: AuthMethod::None,
         ..Default::default()
     };
 
@@ -43,6 +46,7 @@ pub fn init(app: Arc<App>, modem: WifiModem<'static>) -> Result<()> {
     let mut mdns = ManuallyDrop::new(EspMdns::take()?);
     mdns.set_hostname("windlink")?;
     mdns.add_service(None, "_http", "_tcp", 80, &[])?;
+    mdns.add_service(None, "_windlink", "_tcp", 40, &[])?;
 
     let mut http = ManuallyDrop::new(EspHttpServer::new(&Default::default())?);
     http.fn_handler::<Error, _>("/", Method::Get, |req| {
@@ -56,17 +60,41 @@ pub fn init(app: Arc<App>, modem: WifiModem<'static>) -> Result<()> {
         ota.factory_reset()?;
         req.into_ok_response()?.flush()?;
 
-        FreeRtos::delay_ms(500);
-        esp_idf_hal::reset::restart();
+        thread::spawn(|| {
+            FreeRtos::delay_ms(1000);
+            esp_idf_hal::reset::restart();
+        });
+        Ok(())
     })?;
+
+    http.fn_handler::<Error, _>(
+        "/logs",
+        Method::Get,
+        clone!([app], move |req| {
+            let mut resp = req.into_ok_response()?;
+            let logs = (app.logs.force_lock().iter())
+                .map(|x| x.as_str())
+                .intersperse("\n")
+                .collect::<String>();
+            resp.write_all(&logs.as_bytes())?;
+            Ok(())
+        }),
+    )?;
 
     let socket = TcpListener::bind("0.0.0.0:40")?;
     thread::spawn(move || {
         for stream in socket.incoming().filter_map(|x| x.ok()) {
+            let mut stream = SharedStream::new(stream);
+
             let mut wireless = app.wireless.force_lock();
-            wireless.push(WirelessClient {
-                stream: BufWriter::new(stream),
-            });
+            wireless.push(WirelessClient::new(&stream));
+            drop(wireless);
+
+            thread::spawn(clone!([app], move || {
+                while let Ok((id, data)) = read_api_packet(&mut stream) {
+                    app.enqueue_packet(RawPacket::new_raw(id, data));
+                }
+            }));
         }
     });
 
@@ -74,11 +102,18 @@ pub fn init(app: Arc<App>, modem: WifiModem<'static>) -> Result<()> {
 }
 
 impl WirelessClient {
+    pub fn new(stream: &SharedStream) -> Self {
+        Self {
+            stream: stream.clone(),
+        }
+    }
+
     fn _write(&mut self, frame: twai_message_t) -> io::Result<()> {
         let bytes = frame.data_length_code as usize;
         self.stream.write_all(&frame.identifier.to_be_bytes())?;
         self.stream.write_all(&[frame.data_length_code])?;
         self.stream.write_all(&frame.data[0..bytes])?;
+        self.stream.flush()?;
         Ok(())
     }
 
@@ -86,4 +121,18 @@ impl WirelessClient {
     pub fn write(&mut self, frame: twai_message_t) -> bool {
         self._write(frame).is_err()
     }
+}
+
+fn read_api_packet(reader: &mut impl Read) -> Result<(u32, [u8; 8])> {
+    let mut ident = [0_u8; 4];
+    reader.read_exact(&mut ident)?;
+
+    let mut length = [0_u8; 1];
+    reader.read_exact(&mut length)?;
+    let length = length[0] as usize;
+
+    let mut data = [0_u8; 8];
+    reader.read_exact(&mut data[..length])?;
+
+    Ok((u32::from_be_bytes(ident), data))
 }
