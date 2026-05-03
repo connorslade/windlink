@@ -60,15 +60,15 @@ impl Packet {
         parse_packet!(pgn, &data, [ProductInformation])
     }
 
-    pub fn serialize(&self, out: &mut Vec<RawPacket>) {
+    pub fn serialize(&self, dest: u8, out: &mut Vec<RawPacket>) {
         match self {
             Packet::IsoRequest(packet) => out.push(RawPacket::new(
-                Header::new(IsoRequest::PGN, 6),
+                Header::new(IsoRequest::PGN, 6, dest),
                 packet.serialize(),
             )),
             Packet::ProductInformation(packet) => {
                 encode_fast_packet(
-                    Header::new(ProductInformation::PGN, 6),
+                    Header::new(ProductInformation::PGN, 6, dest),
                     &packet.serialize(),
                     out,
                 );

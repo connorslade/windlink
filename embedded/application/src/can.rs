@@ -82,7 +82,7 @@ pub fn init(
 fn on_packet(app: &App, nmea2000: &mut Nmea2000, packet: Packet) {
     match packet {
         Packet::IsoRequest(packet) => match packet.pgn {
-            0x1F014 => nmea2000.enqueue(Packet::ProductInformation(PRODUCT_INFO)),
+            0x1F014 => nmea2000.enqueue(Packet::ProductInformation(PRODUCT_INFO), 0xFF),
             _ => {}
         },
         Packet::PositionRapidUpdate(packet) => {

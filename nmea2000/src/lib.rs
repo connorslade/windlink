@@ -129,8 +129,8 @@ impl Nmea2000 {
         packet
     }
 
-    pub fn enqueue(&mut self, packet: Packet) {
-        packet.serialize(&mut self.queue);
+    pub fn enqueue(&mut self, packet: Packet, dest: u8) {
+        packet.serialize(dest, &mut self.queue);
     }
 
     pub fn enqueue_raw(&mut self, packet: RawPacket) {
@@ -177,7 +177,7 @@ impl Nmea2000 {
 
     fn address_claim(&self) -> RawPacket {
         RawPacket::new(
-            Header::new(AddressClaim::PGN, 6),
+            Header::new(AddressClaim::PGN, 6, 0xFF),
             self.address_claim.serialize(),
         )
     }
