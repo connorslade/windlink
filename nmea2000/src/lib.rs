@@ -74,9 +74,13 @@ impl Nmea2000 {
 
     pub fn on_packet(&mut self, id: u32, data: [u8; 8]) -> Option<Packet> {
         self.garbage_collect();
-        self.seen_packets = true;
         let header = Header::deserialize(id);
 
+        if header.destination != 0xFF && header.destination != self.address {
+            return None;
+        }
+
+        self.seen_packets = true;
         let packet = if KNOWN_FAST_PACKETS.contains(&header.pgn) {
             let frame = data[0] & bits(5);
             let sequence = (data[0] >> 5) & bits(3);
