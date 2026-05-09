@@ -6,12 +6,14 @@ use crate::{
         fast::encode_fast_packet,
         handshake::{AddressClaim, IsoRequest, ProductInformation},
         motion::{CogSogRapidUpdate, PositionRapidUpdate, VesselHeading, WindData},
+        proprietary::SimnetAp,
     },
 };
 
 pub mod fast;
 pub mod handshake;
 pub mod motion;
+pub mod proprietary;
 
 #[derive(Debug)]
 pub enum Packet {
@@ -22,6 +24,7 @@ pub enum Packet {
     CogSogRapidUpdate(CogSogRapidUpdate),
     VesselHeading(VesselHeading),
     WindData(WindData),
+    SimnetAp(SimnetAp),
 }
 
 #[derive(Debug)]
@@ -40,6 +43,14 @@ macro_rules! parse_packet {
 }
 
 impl Packet {
+    pub fn pgn(&self) -> u32 {
+        match self {
+            Packet::ProductInformation(_) => ProductInformation::PGN,
+            Packet::SimnetAp(_) => SimnetAp::PGN,
+            _ => unimplemented!(),
+        }
+    }
+
     pub fn deserialize_single(pgn: u32, data: [u8; 8]) -> Option<Self> {
         let data = u64::from_le_bytes(data);
         parse_packet!(
@@ -57,10 +68,10 @@ impl Packet {
     }
 
     pub fn deserialize_fast(pgn: u32, data: Vec<u8>) -> Option<Self> {
-        parse_packet!(pgn, &data, [ProductInformation])
+        parse_packet!(pgn, &data, [ProductInformation, SimnetAp])
     }
 
-    pub fn serialize(&self, dest: u8, out: &mut Vec<RawPacket>) {
+    pub fn serialize(&self, dest: u8, seq: u8, out: &mut Vec<RawPacket>) {
         match self {
             Packet::IsoRequest(packet) => out.push(RawPacket::new(
                 Header::new(IsoRequest::PGN, 6, dest),
@@ -69,6 +80,15 @@ impl Packet {
             Packet::ProductInformation(packet) => {
                 encode_fast_packet(
                     Header::new(ProductInformation::PGN, 6, dest),
+                    seq,
+                    &packet.serialize(),
+                    out,
+                );
+            }
+            Packet::SimnetAp(packet) => {
+                encode_fast_packet(
+                    Header::new(SimnetAp::PGN, 2, dest),
+                    seq,
                     &packet.serialize(),
                     out,
                 );

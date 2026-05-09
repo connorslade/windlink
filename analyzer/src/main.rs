@@ -1,14 +1,19 @@
 use std::{
-    io::{BufReader, BufWriter, Read, Write},
+    io::{BufReader, BufWriter, Read, Write, stdin},
     net::{SocketAddr, TcpStream},
+    sync::mpsc::sync_channel,
+    thread,
 };
 
 use anyhow::{Result, bail};
 use mdns_sd::{ServiceDaemon, ServiceEvent};
-use nmea2000::Nmea2000;
+use nmea2000::{
+    Header, Nmea2000,
+    packets::{Packet, proprietary::SimnetAp},
+};
 
 fn main() -> Result<()> {
-    println!("Searching for widnlink");
+    println!("Searching for windlink");
     let service = find_service()?;
     println!("Found!");
 
@@ -18,17 +23,44 @@ fn main() -> Result<()> {
 
     let mut nmea2000 = Nmea2000::new();
 
+    let (tx, rx) = sync_channel(10);
+    thread::spawn(move || {
+        loop {
+            let out = &mut [0];
+            if let Ok(1) = stdin().read(out)
+                && out[0] == 10
+            {
+                tx.send(Packet::SimnetAp(SimnetAp {
+                    address: 6,
+                    proprietary: 255,
+                    command: 10,
+                    event: 6,
+                }))
+                .unwrap();
+            }
+        }
+    });
+
     loop {
         let ident = u32::from_be_bytes(read_bytes::<4>(&mut reader)?);
+        let header = Header::deserialize(ident);
 
         let mut data = [0_u8; 8];
         let length = read_bytes::<1>(&mut reader)?[0] as usize;
         reader.read_exact(&mut data[..length])?;
 
-        if let Some(packet) = nmea2000.on_packet(ident, data) {
+        if header.pgn == SimnetAp::PGN {
+            println!(" | {header:?} {:?}", &data[..length]);
+        }
+
+        if let Some(Packet::SimnetAp(packet)) = nmea2000.on_packet(ident, data) {
             println!("{packet:?}");
         }
 
+        while let Ok(packet) = rx.try_recv() {
+            println!("enqueue!");
+            nmea2000.enqueue(packet, 255);
+        }
         for packet in nmea2000.dequeue() {
             println!("Sending {packet:?}");
             writer.write_all(&packet.id.to_be_bytes())?;

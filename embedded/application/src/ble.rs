@@ -8,7 +8,15 @@ use std::{
 
 use anyhow::Result;
 use clone_macro::clone;
-use esp_idf_hal::modem::BluetoothModem;
+use esp_idf_hal::{
+    modem::BluetoothModem,
+    sys::{
+        esp_ble_power_type_t_ESP_BLE_PWR_TYPE_ADV as ESP_BLE_PWR_TYPE_ADV,
+        esp_ble_power_type_t_ESP_BLE_PWR_TYPE_DEFAULT as ESP_BLE_PWR_TYPE_DEFAULT,
+        esp_ble_power_type_t_ESP_BLE_PWR_TYPE_SCAN as ESP_BLE_PWR_TYPE_SCAN, esp_ble_tx_power_set,
+        esp_power_level_t_ESP_PWR_LVL_P9 as ESP_PWR_LVL_P9,
+    },
+};
 use esp_idf_svc::bt::{
     Ble, BtDriver, BtUuid,
     ble::{
@@ -91,6 +99,10 @@ struct Client {
 
 pub fn init(app: Arc<App>, modem: BluetoothModem<'static>) -> Result<()> {
     let driver = Arc::new(BtDriver::<Ble>::new(modem, Some(app.nvs.clone()))?);
+    unsafe { esp_ble_tx_power_set(ESP_BLE_PWR_TYPE_DEFAULT, ESP_PWR_LVL_P9) };
+    unsafe { esp_ble_tx_power_set(ESP_BLE_PWR_TYPE_SCAN, ESP_PWR_LVL_P9) };
+    unsafe { esp_ble_tx_power_set(ESP_BLE_PWR_TYPE_ADV, ESP_PWR_LVL_P9) };
+
     let bt = Arc::new(Bluetooth {
         gap: EspBleGap::new(driver.clone())?,
         gatts: EspGatts::new(driver.clone())?,

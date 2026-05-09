@@ -2,10 +2,10 @@ use std::{mem, time::Instant};
 
 use crate::{
     Header,
-    packets::{RawPacket, handshake::ProductInformation},
+    packets::{RawPacket, handshake::ProductInformation, proprietary::SimnetAp},
 };
 
-pub const KNOWN_FAST_PACKETS: &[u32] = &[ProductInformation::PGN];
+pub const KNOWN_FAST_PACKETS: &[u32] = &[ProductInformation::PGN, SimnetAp::PGN];
 
 pub struct FastPacket {
     pub total_length: usize,
@@ -37,21 +37,24 @@ impl FastPacket {
     }
 }
 
-pub fn encode_fast_packet(header: Header, data: &[u8], out: &mut Vec<RawPacket>) {
+pub fn encode_fast_packet(header: Header, seq: u8, data: &[u8], out: &mut Vec<RawPacket>) {
     let len = data.len() as u8;
-    let get = |i: usize| data.get(i).copied().unwrap_or_default();
+    let seq = seq << 5;
+
+    let get = |i: usize| data.get(i).copied().unwrap_or(0xFF);
     out.push(RawPacket::new_bytes(
         header,
-        [0, len, get(0), get(1), get(2), get(3), get(4), get(5)],
+        [seq, len, get(0), get(1), get(2), get(3), get(4), get(5)],
     ));
 
     let mut i = 6;
-    let mut sequence = 1;
+    let mut frame = 1;
     while i < data.len() {
+        assert!(frame <= 31);
         out.push(RawPacket::new_bytes(
             header,
             [
-                sequence,
+                seq | frame,
                 get(i + 0),
                 get(i + 1),
                 get(i + 2),
@@ -61,7 +64,7 @@ pub fn encode_fast_packet(header: Header, data: &[u8], out: &mut Vec<RawPacket>)
                 get(i + 6),
             ],
         ));
-        sequence += 1;
+        frame += 1;
         i += 7;
     }
 }

@@ -27,6 +27,7 @@ pub struct Nmea2000 {
     seen_packets: bool,
 
     fast_packet: HashMap<(u32, u8), FastPacket>,
+    fast_packet_tx: HashMap<u32, u8>,
     queue: Vec<RawPacket>,
 
     address_claim: AddressClaim,
@@ -42,6 +43,7 @@ impl Nmea2000 {
             seen_packets: false,
 
             fast_packet: HashMap::new(),
+            fast_packet_tx: HashMap::new(),
             queue: Vec::new(),
 
             address_claim: AddressClaim {
@@ -134,7 +136,9 @@ impl Nmea2000 {
     }
 
     pub fn enqueue(&mut self, packet: Packet, dest: u8) {
-        packet.serialize(dest, &mut self.queue);
+        let seq = self.fast_packet_tx.entry(packet.pgn()).or_default();
+        packet.serialize(dest, *seq, &mut self.queue);
+        *seq = (*seq + 1) % 8;
     }
 
     pub fn enqueue_raw(&mut self, packet: RawPacket) {
