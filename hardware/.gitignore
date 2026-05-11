@@ -1,7 +1,9 @@
 /bom
 fp-info-cache
+\#auto_saved_files\#
 *.FCBak
 *.kicad_prl
 *-backups
 *_autosave*
 *.lck
+*-old*
