@@ -1,5 +1,7 @@
 /bom
 fp-info-cache
+/export
+/output
 \#auto_saved_files\#
 *.FCBak
 *.kicad_prl
